@@ -1,0 +1,16 @@
+**/target/
+**/node_modules/
+frontend/dist/
+.runtime/
+.env
+.env.local
+*.log
+playwright-report/
+test-results/
+.idea/
+**/test-results/
+**/playwright-report/
+*.tsbuildinfo
+archives/
+*.dump
+*.dump.sha256

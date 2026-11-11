@@ -1,0 +1,67 @@
+name: guoxin-assistant
+services:
+  postgres:
+    image: postgres:16.4
+    environment:
+      POSTGRES_DB: guoxin
+      POSTGRES_USER: guoxin
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-guoxin-local-demo}
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guoxin -d guoxin"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/backend.Dockerfile
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/guoxin
+      DATABASE_USERNAME: guoxin
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-guoxin-local-demo}
+      QWEN_API_KEY: ${QWEN_API_KEY:-${DASHSCOPE_API_KEY:-}}
+      QWEN_BASE_URL: ${QWEN_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      QWEN_MODEL: ${QWEN_MODEL:-qwen-plus}
+      AGENT_MODEL_MODE: ${AGENT_MODEL_MODE:-qwen}
+      SPRING_PROFILES_ACTIVE: local-demo
+      TZ: Asia/Shanghai
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/frontend.Dockerfile
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+  verify:
+    profiles: ["verify"]
+    image: maven:3.9.9-eclipse-temurin-21
+    working_dir: /workspace/backend
+    volumes:
+      - .:/workspace
+      - maven-cache:/root/.m2
+    environment:
+      PG_TEST_URL: jdbc:postgresql://postgres:5432/guoxin
+      PG_TEST_USER: guoxin
+      PG_TEST_PASSWORD: ${DATABASE_PASSWORD:-guoxin-local-demo}
+      QWEN_API_KEY: ${QWEN_API_KEY:-${DASHSCOPE_API_KEY:-}}
+    command: ["mvn", "-s", "../.mvn/settings.xml", "-B", "-ntp", "verify"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+volumes:
+  postgres-data:
+  maven-cache:

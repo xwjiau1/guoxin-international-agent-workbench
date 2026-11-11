@@ -1,0 +1,45 @@
+import {useEffect,useState} from 'react';
+import {Check, CheckCircle2, ClipboardList, FileText, Info, RotateCcw, Save, ShieldCheck} from 'lucide-react';
+import {statusLabel} from './api';
+import type {Component,Data} from './api';
+
+const names:Record<string,string>={applicantName:'申请人',applicantId:'申请人编号',department:'部门',departmentName:'部门',requestMode:'申请类型',credentialType:'证照类型',credentialId:'本人证照',destination:'目的地',departureDate:'出发日期',arrivalBackDate:'返程日期',returnDate:'归还日期',purpose:'用途',applicationReason:'办理原因',remark:'备注',businessNo:'单据编号',processNo:'流程编号',businessStatus:'业务状态',status:'状态',applicationId:'申请编号',draftId:'草稿编号',operationId:'操作编号'};
+const valueLabel=(v:unknown):string=>v==null?'—':typeof v==='object'?JSON.stringify(v):({BORROW:'证照借用',APPLY:'证照办理',PASSPORT:'护照',HK_MACAO_PERMIT:'港澳通行证',APPROVE:'同意',REJECT:'驳回'} as Record<string,string>)[String(v)]||statusLabel(String(v));
+const fieldsOf=(data:Data):Data[]=>Array.isArray(data.fields)?data.fields: data.schema?.fields||Object.entries(data.values||{}).map(([key,value])=>({key,label:names[key]||key,value,editable:false}));
+
+export default function BusinessCard({component:c,busy,onAction,onChooseTask}:{component:Component;busy:boolean;onAction:(type:string,payload:Data)=>Promise<void>;onChooseTask?:(id:string)=>void}){
+ const d=c.data||{}, [values,setValues]=useState<Data>(d.values||{}),[selected,setSelected]=useState<string[]>([]),[decision,setDecision]=useState(d.decision||'APPROVE'),[comment,setComment]=useState(d.comment||''),[editing,setEditing]=useState(false);
+ const items:Data[]=d.items||d.todos||[];
+ useEffect(()=>{setValues(d.values||{});setSelected(d.selectedIds||d.selectedTodoIds||items.map(x=>x.todoId||x.id));setDecision(d.decision||'APPROVE');setComment(d.comment||'');setEditing(false)},[c.componentId,c.version]);
+ const disabled=busy||Boolean(c.status&&c.status!=='ACTIVE');
+ const base={componentId:c.componentId,componentVersion:c.version};
+ const fields:Data[]=fieldsOf(d).filter(f=>!f.requiredWhen||Object.entries(f.requiredWhen).every(([key,value])=>values[key]===value)).map(f=>{
+  const required=f.required||Boolean(f.requiredWhen);
+  if((f.key||f.name)==='credentialId'&&Array.isArray(d.credentials))return {...f,required,options:d.credentials.filter((x:Data)=>!values.credentialType||x.credentialType===values.credentialType).map((x:Data)=>({value:x.id||x.credentialId,label:valueLabel(x.credentialType)+' · '+x.maskedNo+' · '+valueLabel(x.custodyStatus||x.status)}))};
+  return {...f,required};
+ });
+ const confirm=()=>onAction('CONFIRM',{confirmationId:d.confirmationId});
+ const caption=({FIELD_COLLECTION:'补充申请资料',FORM_PREVIEW:'确认申请信息',TODO_SELECTION:'选择待办范围',APPROVAL_PREVIEW:'确认审核范围',BUSINESS_RECEIPT:'业务办理回执',RECOVERY_NOTICE:'任务恢复提示',TASK_CHOOSER:'选择要继续的任务'} as Record<string,string>)[c.type]||'任务信息';
+ const submitFields=()=>onAction('PROVIDE_FIELDS',{...base,values});
+ return <section className={'business-card '+(disabled?'card-disabled':'')} aria-label={caption}>
+  <header><span className="card-symbol">{c.type==='BUSINESS_RECEIPT'?<CheckCircle2 size={18}/>:<ClipboardList size={18}/>}</span><div><strong>{caption}</strong><small>{c.type==='BUSINESS_RECEIPT'?'以下为业务系统实际返回结果':'请核对信息，确认后由智能小秘继续办理'}</small></div>{c.status&&c.status!=='ACTIVE'&&<span className="pill">{statusLabel(c.status)}</span>}</header>
+  {(c.type==='FIELD_COLLECTION'||c.type==='FORM_PREVIEW')&&<>
+   {d.summary&&<p className="card-note">{typeof d.summary==='string'?d.summary:JSON.stringify(d.summary)}</p>}
+   <div className="field-grid">{fields.map(f=>{const key=f.key||f.name; const v=values[key]??f.value??'';const editable=f.editable!==false&&(c.type==='FIELD_COLLECTION'||editing);return <label key={key}><span>{f.label||names[key]||key}{f.required&&<em> *</em>}{f.source==='PROFILE'&&<small className="source">本人信息</small>}</span>{editable?(f.options?.length?<select disabled={disabled} value={v} onChange={e=>setValues({...values,[key]:e.target.value})}><option value="">请选择</option>{f.options.map((o:any)=><option key={typeof o==='object'?o.value:o} value={typeof o==='object'?o.value:o}>{typeof o==='object'?o.label:valueLabel(o)}</option>)}</select>:<input disabled={disabled} type={f.type==='date'?'date':f.type==='decimal'?'number':'text'} value={v} onChange={e=>setValues({...values,[key]:e.target.value})} placeholder={'请输入'+(f.label||names[key]||key)}/>):<div className="field-value">{valueLabel(v)}</div>}{f.error&&<small className="field-error">{f.error}</small>}</label>})}</div>
+   {d.fieldErrors&&Object.keys(d.fieldErrors).length>0&&<p className="validation-note">{Array.isArray(d.fieldErrors)?d.fieldErrors.map((x:Data)=>x.message).join('；'):Object.values(d.fieldErrors).join('；')}</p>}
+   <div className="card-actions">{c.type==='FIELD_COLLECTION'||editing?<button className="primary" disabled={disabled} onClick={submitFields}><Check size={15}/>更新资料</button>:<><button className="primary" disabled={disabled||!d.confirmationId} onClick={confirm}><ShieldCheck size={15}/>确认提交</button><button disabled={disabled} onClick={()=>setEditing(true)}>修改信息</button></>}<button disabled={disabled||editing} onClick={()=>onAction('SAVE_DRAFT',base)}><Save size={15}/>保存当前草稿</button></div>
+   {editing&&<small className="muted">请先更新资料，再保存草稿或确认提交。</small>}
+  </>}
+  {(c.type==='TODO_SELECTION'||c.type==='APPROVAL_PREVIEW')&&<>
+   <div className="scope-line"><span>当前范围 <b>{d.totalCount??items.length}</b> 条</span><span>已选 <b>{selected.length}</b> 条</span></div>
+   {(d.dateInterpretation||d.filters)&&<div className="filter-summary"><Info size={14}/>{typeof d.dateInterpretation==='string'?d.dateInterpretation:formatFilters(d.filters||d.dateInterpretation)}</div>}
+   <div className="todo-list">{items.length===0?<p className="muted">当前条件下没有待办，可在对话中调整筛选条件。</p>:items.map(t=>{const id=t.todoId||t.id;return <label className="todo-row" key={id}><input aria-label={'选择'+(t.businessNo||t.title||'待办')} type="checkbox" disabled={disabled} checked={selected.includes(id)} onChange={e=>{setSelected(e.target.checked?[...selected,id]:selected.filter(x=>x!==id));if(c.type==='APPROVAL_PREVIEW')setEditing(true)}}/><div><strong>{t.title||t.summary||formName(t.formType||t.type)}</strong><small>{t.applicantName||t.ownerName||t.applicant||'申请人'} · {t.businessNo||t.documentNo||id.slice(0,8)}{t.arrivedAt?' · '+String(t.arrivedAt).slice(0,10):''}</small></div><span className="pill">{statusLabel(t.status||'PENDING')}</span></label>})}</div>
+   {(c.type==='TODO_SELECTION'||editing)?<><div className="review-settings"><label>审核动作<select disabled={disabled} value={decision} onChange={e=>setDecision(e.target.value)}><option value="APPROVE">同意</option><option value="REJECT">驳回</option></select></label><label>审核意见{decision==='REJECT'&&<em> *</em>}<input disabled={disabled} placeholder={decision==='REJECT'?'请填写驳回原因':'选填审核意见'} value={comment} onChange={e=>setComment(e.target.value)}/></label></div><button className="primary" disabled={disabled||selected.length===0||(decision==='REJECT'&&comment.trim().length<2)} onClick={()=>onAction('UPDATE_REVIEW',{...base,selectedTodoIds:selected,decision,comment})}>预览审核范围 <Check size={15}/></button></>:<><p className="card-note">本次动作：<b>{valueLabel(d.decision)}</b>{d.comment?' · '+d.comment:''}</p><button className="primary" disabled={disabled||!d.confirmationId} onClick={confirm}><ShieldCheck size={15}/>确认{d.decision==='REJECT'?'驳回':'同意'} {items.length} 条</button><small className="muted confirmation-hint">需要调整范围或意见时，可直接在对话中说明。</small></>}
+  </>}
+  {c.type==='BUSINESS_RECEIPT'&&<><div className="receipt-grid">{Object.entries(d).filter(([k,v])=>names[k]&&v!=null).map(([k,v])=><div key={k}><span>{names[k]}</span><strong>{valueLabel(v)}</strong></div>)}</div>{d.message&&<p className="card-note">{d.message}</p>}{items.length>0&&<div className="receipt-items">{items.map((x,i)=><div key={x.id||i}><span>{x.businessNo||x.todoId||'第 '+(i+1)+' 项'}</span><b className={x.success===false?'danger-text':''}>{x.message||statusLabel(x.status||x.code||'完成')}</b></div>)}</div>}{(c.allowedActions||[]).includes('RETRY_FAILED')&&<button disabled={busy} onClick={()=>onAction('RETRY_FAILED',{sourceOperationId:d.operationId})}><RotateCcw size={15}/>重试可恢复的失败项</button>}</>}
+  {c.type==='RECOVERY_NOTICE'&&<><p className="card-note">{d.reason||d.message||'任务已保存，可以稍后恢复。'}</p><button disabled={busy} onClick={()=>onAction('RESUME',{})}><RotateCcw size={15}/>恢复任务</button></>}
+  {c.type==='TASK_CHOOSER'&&<div className="card-note">{(d.tasks||[]).map((x:Data)=><button className="task-choice" disabled={busy} key={x.id||x.taskId} onClick={()=>onChooseTask?.(x.id||x.taskId)}><FileText size={14}/>{x.title||x.type} · {statusLabel(x.status)}</button>)}请选择要继续办理的任务。</div>}
+ </section>
+}
+function formName(v:string){return ({TRAVEL_APPLICATION:'出差申请',REIMBURSEMENT:'报销单',PRIVATE_OVERSEAS:'因私出国（境）审批',PRIVATE_CREDENTIAL:'因私证照办理申请'} as Record<string,string>)[v]||v||'审批待办'}
+function formatFilters(v:Data){return [v?.dateField==='applicationDate'?'申请日期':'待办到达时间',v?.from&&String(v.from).slice(0,10),v?.to&&'至 '+String(v.to).slice(0,10),v?.keyword].filter(Boolean).join(' · ')}

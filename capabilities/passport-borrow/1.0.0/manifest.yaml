@@ -1,0 +1,7 @@
+skillId: passport-borrow
+version: 1.0.0
+description: 根据本人信息和单据元数据，多轮收集证照办理或借用资料，保存草稿并确认提交
+intents: [CREDENTIAL]
+workflowId: credential-application
+allowedTools: [profile_get_self, form_get_schema, credential_list_mine, form_validate, draft_save, draft_get, application_get]
+confirmationRequired: [submit_application]

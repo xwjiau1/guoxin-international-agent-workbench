@@ -1,0 +1,7 @@
+skillId: todo-review
+version: 1.0.0
+description: 查询当前处理人为本人的待办，按单据和日期筛选并组件确认后审核
+intents: [TODO]
+workflowId: todo-review
+allowedTools: [todo_search, todo_statistics]
+confirmationRequired: [review_todo]

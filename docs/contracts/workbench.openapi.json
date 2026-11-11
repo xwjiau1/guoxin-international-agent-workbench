@@ -1,0 +1,1936 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "国新国际智能小秘工作台 API",
+    "version": "0.1.0-design",
+    "description": "详细设计契约草案，尚未实现。内部业务端口及组件详情见配套设计文档。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080/api/v1",
+      "description": "计划的本地演示地址"
+    }
+  ],
+  "security": [
+    {
+      "sessionCookie": []
+    }
+  ],
+  "paths": {
+    "/auth/demo-login": {
+      "post": {
+        "operationId": "demoLogin",
+        "summary": "演示账号登录",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/LoginResult"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "headers": {
+              "Set-Cookie": {
+                "description": "高熵session Cookie；正式HTTPS环境设置Secure，始终HttpOnly与SameSite。",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "security": [],
+        "description": "仅local-demo启用。校验请求Origin，创建HttpOnly session Cookie；生产profile无此路由。"
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "summary": "退出登录",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Empty"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "从登录结果或 GET /me 获取，服务端会话校验。"
+          }
+        ]
+      }
+    },
+    "/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "本人信息与CSRF令牌",
+        "tags": [
+          "auth"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Actor"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/conversations": {
+      "get": {
+        "operationId": "listConversations",
+        "summary": "本人会话列表",
+        "tags": [
+          "workbench"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Conversation"
+                          }
+                        },
+                        "nextCursor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "createConversation",
+        "summary": "创建会话",
+        "tags": [
+          "workbench"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Conversation"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "从登录结果或 GET /me 获取，服务端会话校验。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateConversation"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/conversations/{conversationId}": {
+      "get": {
+        "operationId": "getConversation",
+        "summary": "会话快照",
+        "tags": [
+          "workbench"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Conversation"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/conversations/{conversationId}/messages": {
+      "get": {
+        "operationId": "listMessages",
+        "summary": "历史消息与组件",
+        "tags": [
+          "workbench"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Message"
+                          }
+                        },
+                        "nextCursor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      },
+      "post": {
+        "operationId": "submitMessage",
+        "summary": "受理消息并排队执行",
+        "tags": [
+          "workbench"
+        ],
+        "responses": {
+          "202": {
+            "description": "已持久化受理，不表示业务已成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "从登录结果或 GET /me 获取，服务端会话校验。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitMessage"
+              }
+            }
+          }
+        },
+        "description": "clientMessageId去重；同ID不同内容返回409。taskId省略时由后端路由，后续事件提供最终任务ID。"
+      }
+    },
+    "/conversations/{conversationId}/events": {
+      "get": {
+        "operationId": "subscribeEvents",
+        "summary": "订阅可恢复SSE事件",
+        "tags": [
+          "workbench"
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE，事件正文协议参见02-接口与组件协议.md；断线不取消任务。",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                },
+                "example": "id: 128\nevent: task.updated\ndata: {\"schemaVersion\":\"1.0\",\"eventId\":\"128\",\"payload\":{\"status\":\"WAITING_INPUT\"}}\n\n"
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "conversationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "afterEventId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          },
+          {
+            "name": "Last-Event-ID",
+            "in": "header",
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            }
+          }
+        ],
+        "description": "两种游标同时给出时必须相同；事件按会话序号去重，15秒心跳；过期游标返回409 EVENTS_EXPIRED，重新获取快照。"
+      }
+    },
+    "/tasks/{taskId}": {
+      "get": {
+        "operationId": "getTask",
+        "summary": "本人任务快照",
+        "tags": [
+          "workbench"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Task"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/tasks/{taskId}/actions": {
+      "post": {
+        "operationId": "submitAction",
+        "summary": "受理组件或任务动作",
+        "tags": [
+          "workbench"
+        ],
+        "responses": {
+          "202": {
+            "description": "已持久化受理，不表示业务已成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Accepted"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "X-CSRF-Token",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "从登录结果或 GET /me 获取，服务端会话校验。"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TaskAction"
+              }
+            }
+          }
+        },
+        "description": "actionId去重、expectedTaskVersion乐观锁。CONFIRM仅接受confirmationId，范围来自服务端快照；重复确认返回已有操作关联run。"
+      }
+    },
+    "/tasks/{taskId}/trace": {
+      "get": {
+        "operationId": "listTrace",
+        "summary": "本人任务脱敏执行记录",
+        "tags": [
+          "workbench"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/TraceEvent"
+                          }
+                        },
+                        "nextCursor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "taskId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/drafts": {
+      "get": {
+        "operationId": "listDrafts",
+        "summary": "本人草稿列表",
+        "tags": [
+          "workbench"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Draft"
+                          }
+                        },
+                        "nextCursor": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "items",
+                        "nextCursor"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "cursor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ]
+      }
+    },
+    "/drafts/{draftId}": {
+      "get": {
+        "operationId": "getDraft",
+        "summary": "本人草稿详情",
+        "tags": [
+          "workbench"
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "const": "OK"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Draft"
+                    },
+                    "traceId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "data",
+                    "traceId"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "结构化错误。非本人资源返回404；异步业务失败另查任务/事件。",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "draftId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "GX_SESSION"
+      }
+    },
+    "schemas": {
+      "Error": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "fieldErrors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldError"
+            }
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "recoveryAction": {
+            "type": "string",
+            "enum": [
+              "COLLECT_FIELDS",
+              "RELOGIN",
+              "REFRESH_PREVIEW",
+              "RETRY_LATER",
+              "RECONCILE",
+              "NONE"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "category",
+          "message",
+          "traceId"
+        ],
+        "additionalProperties": false
+      },
+      "FieldError": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "allowedValues": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "path",
+          "code",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "username",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "Actor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "employeeNo": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "csrfToken": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "employeeNo",
+          "name",
+          "department",
+          "capabilities",
+          "csrfToken"
+        ],
+        "additionalProperties": false
+      },
+      "LoginResult": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "$ref": "#/components/schemas/Actor"
+          }
+        },
+        "required": [
+          "actor"
+        ],
+        "additionalProperties": false
+      },
+      "Conversation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "activeTaskId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastEventId": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "createdAt",
+          "updatedAt",
+          "activeTaskId",
+          "lastEventId"
+        ],
+        "additionalProperties": false
+      },
+      "CreateConversation": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 100
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "SubmitMessage": {
+        "type": "object",
+        "properties": {
+          "clientMessageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 8000
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "clientMessageId",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "Accepted": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "messageId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "runId"
+        ],
+        "additionalProperties": false
+      },
+      "Message": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "ASSISTANT",
+              "TOOL"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "STREAMING",
+              "COMPLETED",
+              "INTERRUPTED"
+            ]
+          },
+          "runId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Component"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "content",
+          "status",
+          "runId",
+          "createdAt",
+          "components"
+        ],
+        "additionalProperties": false
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": [
+          "RUNNING",
+          "WAITING_INPUT",
+          "DRAFT_SAVED",
+          "PAUSED",
+          "WAITING_CONFIRMATION",
+          "EXECUTING",
+          "RECONCILING",
+          "SUCCEEDED",
+          "PARTIAL_SUCCEEDED",
+          "FAILED_RECOVERABLE",
+          "FAILED_FINAL",
+          "CANCELLED"
+        ]
+      },
+      "Task": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "conversationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "activeRunId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "draftId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operationId": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "allowedActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Component"
+            }
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "conversationId",
+          "type",
+          "status",
+          "version",
+          "activeRunId",
+          "draftId",
+          "operationId",
+          "allowedActions",
+          "components",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "Component": {
+        "type": "object",
+        "properties": {
+          "componentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "FIELD_COLLECTION",
+              "FORM_PREVIEW",
+              "TODO_SELECTION",
+              "APPROVAL_PREVIEW",
+              "BUSINESS_RECEIPT",
+              "TASK_CHOOSER",
+              "RECOVERY_NOTICE"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "ACTIVE",
+              "SUPERSEDED",
+              "CONSUMED",
+              "EXPIRED"
+            ]
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "allowedActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "componentId",
+          "taskId",
+          "type",
+          "version",
+          "status",
+          "data",
+          "allowedActions"
+        ],
+        "additionalProperties": false
+      },
+      "TraceEvent": {
+        "type": "object",
+        "properties": {
+          "eventId": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "spanId": {
+            "type": "string"
+          },
+          "parentSpanId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "type": {
+            "type": "string"
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "eventId",
+          "traceId",
+          "type",
+          "occurredAt",
+          "payload"
+        ],
+        "additionalProperties": false
+      },
+      "Draft": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "formType": {
+            "type": "string"
+          },
+          "metadataVersion": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "SUBMITTED"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "taskId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "fieldSources": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "formType",
+          "metadataVersion",
+          "status",
+          "version",
+          "taskId",
+          "values",
+          "fieldSources",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "ProvideFields": {
+        "type": "object",
+        "properties": {
+          "componentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "componentVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "values": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "componentId",
+          "componentVersion",
+          "values"
+        ],
+        "additionalProperties": false
+      },
+      "UpdateReview": {
+        "type": "object",
+        "properties": {
+          "componentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "componentVersion": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "selectedTodoIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "REJECT"
+            ]
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "componentId",
+          "componentVersion",
+          "selectedTodoIds",
+          "decision"
+        ],
+        "additionalProperties": false
+      },
+      "Confirm": {
+        "type": "object",
+        "properties": {
+          "confirmationId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "confirmationId"
+        ],
+        "additionalProperties": false
+      },
+      "SaveDraft": {
+        "type": "object",
+        "properties": {
+          "componentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "componentVersion": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      },
+      "RetryFailed": {
+        "type": "object",
+        "properties": {
+          "sourceOperationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true
+          }
+        },
+        "required": [
+          "sourceOperationId"
+        ],
+        "additionalProperties": false
+      },
+      "Empty": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      },
+      "TaskAction": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "actionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "type": {
+                "const": "PROVIDE_FIELDS"
+              },
+              "expectedTaskVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "payload": {
+                "$ref": "#/components/schemas/ProvideFields"
+              }
+            },
+            "required": [
+              "actionId",
+              "type",
+              "expectedTaskVersion",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "actionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "type": {
+                "const": "UPDATE_REVIEW"
+              },
+              "expectedTaskVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "payload": {
+                "$ref": "#/components/schemas/UpdateReview"
+              }
+            },
+            "required": [
+              "actionId",
+              "type",
+              "expectedTaskVersion",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "actionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "type": {
+                "const": "CONFIRM"
+              },
+              "expectedTaskVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "payload": {
+                "$ref": "#/components/schemas/Confirm"
+              }
+            },
+            "required": [
+              "actionId",
+              "type",
+              "expectedTaskVersion",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "actionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "type": {
+                "const": "SAVE_DRAFT"
+              },
+              "expectedTaskVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "payload": {
+                "$ref": "#/components/schemas/SaveDraft"
+              }
+            },
+            "required": [
+              "actionId",
+              "type",
+              "expectedTaskVersion",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "actionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "type": {
+                "const": "RESUME"
+              },
+              "expectedTaskVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "payload": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            },
+            "required": [
+              "actionId",
+              "type",
+              "expectedTaskVersion",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "actionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "type": {
+                "const": "PAUSE"
+              },
+              "expectedTaskVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "payload": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            },
+            "required": [
+              "actionId",
+              "type",
+              "expectedTaskVersion",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "actionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "type": {
+                "const": "CANCEL"
+              },
+              "expectedTaskVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "payload": {
+                "$ref": "#/components/schemas/Empty"
+              }
+            },
+            "required": [
+              "actionId",
+              "type",
+              "expectedTaskVersion",
+              "payload"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "actionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "type": {
+                "const": "RETRY_FAILED"
+              },
+              "expectedTaskVersion": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "payload": {
+                "$ref": "#/components/schemas/RetryFailed"
+              }
+            },
+            "required": [
+              "actionId",
+              "type",
+              "expectedTaskVersion",
+              "payload"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  }
+}

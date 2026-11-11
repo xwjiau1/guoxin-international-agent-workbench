@@ -1,0 +1,39 @@
+{
+  "version": "0.1",
+  "scope": "local-demo",
+  "date": "2026-11-12",
+  "status": "RELEASED",
+  "artifact": {
+    "path": "backend/assistant-boot/target/assistant-boot-0.1.0-SNAPSHOT.jar",
+    "sha256": "cefda4d130ab7a4d51f37be65d305ac4fb83ffd60c74d0701ab468aac77c1d28",
+    "size": 30351646
+  },
+  "images": {
+    "backend": {
+      "imageId": "sha256:867d7ee2ca0d5e15785e4d4e5a0741ec75b8ae6c52353f04954b10df2802487a",
+      "tag": "guoxin-assistant-backend:v0.1-20261112"
+    },
+    "frontend": {
+      "imageId": "sha256:714712abf093302830fb6f4ace1bb3bf7e118251d5e19d70bb3e40433e328325",
+      "tag": "guoxin-assistant-frontend:v0.1-20261112"
+    }
+  },
+  "validation": {
+    "agentOffline": 9,
+    "businessPostgres": 11,
+    "httpPostgres": 3,
+    "realQwen": 2,
+    "realBrowserFlows": 2,
+    "restartPersistence": true,
+    "finalContainerSmoke": true
+  },
+  "evidence": [
+    "docs/V0.1-验证记录.md",
+    "docs/test-reports/backend-summary.md",
+    "docs/test-reports/frontend-e2e.md"
+  ],
+  "knownLimitations": "specs/v0.1/plan.md",
+  "handoff": "HANDOFF.md",
+  "offlineImageArchive": "D:/GuoxinAssistantRuntime/releases/v0.1-images.tar",
+  "offlineArchiveSha256": "883bfd55814e2862426f6346feebf77ebdb476835d2b5f0e27f177551de3899b"
+}

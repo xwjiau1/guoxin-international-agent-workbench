@@ -1,0 +1,28 @@
+server:
+  port: ${SERVER_PORT:8080}
+  error:
+    include-message: never
+spring:
+  application:
+    name: guoxin-assistant
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local-demo}
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://127.0.0.1:55432/guoxin}
+    username: ${DATABASE_USERNAME:guoxin}
+    password: ${DATABASE_PASSWORD:guoxin-local-demo}
+    hikari:
+      maximum-pool-size: 8
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+agent:
+  model-mode: ${AGENT_MODEL_MODE:qwen}
+  model: ${QWEN_MODEL:qwen-plus}
+  base-url: ${QWEN_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
+  api-key: ${QWEN_API_KEY:${DASHSCOPE_API_KEY:}}
