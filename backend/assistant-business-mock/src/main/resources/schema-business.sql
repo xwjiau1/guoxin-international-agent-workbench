@@ -1,10 +1,85 @@
-CREATE TABLE IF NOT EXISTS gx_biz_employee (id varchar(64) PRIMARY KEY, employee_no varchar(32) UNIQUE NOT NULL, name varchar(100) NOT NULL, department varchar(100) NOT NULL);
-CREATE TABLE IF NOT EXISTS gx_biz_credential (id varchar(64) PRIMARY KEY, owner_id varchar(64) NOT NULL REFERENCES gx_biz_employee(id), credential_type varchar(40) NOT NULL, masked_no varchar(40) NOT NULL, custody_status varchar(30) NOT NULL, valid_until date NOT NULL, version bigint NOT NULL DEFAULT 1);
-CREATE TABLE IF NOT EXISTS gx_biz_draft (id varchar(64) PRIMARY KEY, owner_id varchar(64) NOT NULL REFERENCES gx_biz_employee(id), form_type varchar(50) NOT NULL, metadata_version varchar(20) NOT NULL, values_json text NOT NULL, status varchar(30) NOT NULL DEFAULT 'DRAFT', version bigint NOT NULL DEFAULT 1, document_id varchar(64), updated_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP);
-CREATE TABLE IF NOT EXISTS gx_biz_document (id varchar(64) PRIMARY KEY, business_no varchar(64) UNIQUE NOT NULL, owner_id varchar(64) NOT NULL REFERENCES gx_biz_employee(id), form_type varchar(50) NOT NULL, metadata_version varchar(20) NOT NULL, status varchar(30) NOT NULL, values_json text NOT NULL, created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP, version bigint NOT NULL DEFAULT 1);
-CREATE TABLE IF NOT EXISTS gx_biz_workflow (id varchar(64) PRIMARY KEY, process_no varchar(64) UNIQUE NOT NULL, document_id varchar(64) UNIQUE NOT NULL REFERENCES gx_biz_document(id), status varchar(30) NOT NULL);
-CREATE TABLE IF NOT EXISTS gx_biz_todo (id varchar(64) PRIMARY KEY, workflow_id varchar(64) NOT NULL REFERENCES gx_biz_workflow(id), document_id varchar(64) NOT NULL REFERENCES gx_biz_document(id), assignee_id varchar(64) NOT NULL REFERENCES gx_biz_employee(id), arrived_at timestamp with time zone NOT NULL, status varchar(30) NOT NULL DEFAULT 'PENDING', version bigint NOT NULL DEFAULT 1);
-CREATE INDEX IF NOT EXISTS gx_biz_todo_assignee ON gx_biz_todo (assignee_id,status,arrived_at,id);
-CREATE TABLE IF NOT EXISTS gx_biz_approval_record (id varchar(64) PRIMARY KEY, todo_id varchar(64) NOT NULL REFERENCES gx_biz_todo(id), actor_id varchar(64) NOT NULL, decision varchar(20) NOT NULL, comment_text varchar(1000) NOT NULL, operation_id varchar(100) UNIQUE NOT NULL, created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP);
-CREATE TABLE IF NOT EXISTS gx_biz_receipt (operation_id varchar(100) PRIMARY KEY, actor_id varchar(64) NOT NULL, tool_name varchar(60) NOT NULL, request_hash varchar(100) NOT NULL, response_json text, created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP);
-CREATE TABLE IF NOT EXISTS gx_biz_credential_reservation (credential_id varchar(64) PRIMARY KEY REFERENCES gx_biz_credential(id), document_id varchar(64) UNIQUE NOT NULL REFERENCES gx_biz_document(id), created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE TABLE IF NOT EXISTS gx_biz_employee (
+    id varchar(64) PRIMARY KEY,
+    employee_no varchar(32) UNIQUE NOT NULL,
+    name varchar(100) NOT NULL,
+    department varchar(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS gx_biz_credential (
+    id varchar(64) PRIMARY KEY,
+    owner_id varchar(64) NOT NULL REFERENCES gx_biz_employee(id),
+    credential_type varchar(40) NOT NULL,
+    masked_no varchar(40) NOT NULL,
+    custody_status varchar(30) NOT NULL,
+    valid_until date NOT NULL,
+    version bigint NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS gx_biz_draft (
+    id varchar(64) PRIMARY KEY,
+    owner_id varchar(64) NOT NULL REFERENCES gx_biz_employee(id),
+    form_type varchar(50) NOT NULL,
+    metadata_version varchar(20) NOT NULL,
+    values_json text NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'DRAFT',
+    version bigint NOT NULL DEFAULT 1,
+    document_id varchar(64),
+    updated_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS gx_biz_document (
+    id varchar(64) PRIMARY KEY,
+    business_no varchar(64) UNIQUE NOT NULL,
+    owner_id varchar(64) NOT NULL REFERENCES gx_biz_employee(id),
+    form_type varchar(50) NOT NULL,
+    metadata_version varchar(20) NOT NULL,
+    status varchar(30) NOT NULL,
+    values_json text NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    version bigint NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS gx_biz_workflow (
+    id varchar(64) PRIMARY KEY,
+    process_no varchar(64) UNIQUE NOT NULL,
+    document_id varchar(64) UNIQUE NOT NULL REFERENCES gx_biz_document(id),
+    status varchar(30) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS gx_biz_todo (
+    id varchar(64) PRIMARY KEY,
+    workflow_id varchar(64) NOT NULL REFERENCES gx_biz_workflow(id),
+    document_id varchar(64) NOT NULL REFERENCES gx_biz_document(id),
+    assignee_id varchar(64) NOT NULL REFERENCES gx_biz_employee(id),
+    arrived_at timestamp with time zone NOT NULL,
+    status varchar(30) NOT NULL DEFAULT 'PENDING',
+    version bigint NOT NULL DEFAULT 1
+);
+
+CREATE INDEX IF NOT EXISTS gx_biz_todo_assignee
+    ON gx_biz_todo (assignee_id, status, arrived_at, id);
+
+CREATE TABLE IF NOT EXISTS gx_biz_approval_record (
+    id varchar(64) PRIMARY KEY,
+    todo_id varchar(64) NOT NULL REFERENCES gx_biz_todo(id),
+    actor_id varchar(64) NOT NULL,
+    decision varchar(20) NOT NULL,
+    comment_text varchar(1000) NOT NULL,
+    operation_id varchar(100) UNIQUE NOT NULL,
+    created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS gx_biz_receipt (
+    operation_id varchar(100) PRIMARY KEY,
+    actor_id varchar(64) NOT NULL,
+    tool_name varchar(60) NOT NULL,
+    request_hash varchar(100) NOT NULL,
+    response_json text,
+    created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS gx_biz_credential_reservation (
+    credential_id varchar(64) PRIMARY KEY REFERENCES gx_biz_credential(id),
+    document_id varchar(64) UNIQUE NOT NULL REFERENCES gx_biz_document(id),
+    created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

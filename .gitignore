@@ -12,5 +12,7 @@ test-results/
 **/playwright-report/
 *.tsbuildinfo
 archives/
+.agent-work/
+.worktrees/
 *.dump
 *.dump.sha256

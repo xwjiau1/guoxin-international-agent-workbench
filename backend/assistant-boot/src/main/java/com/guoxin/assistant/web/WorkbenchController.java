@@ -12,27 +12,352 @@ import java.util.*;
 import static com.guoxin.assistant.infrastructure.AgentStore.*;
 import static com.guoxin.assistant.web.AuthService.ApiException;
 
-@RestController @RequestMapping("/api/v1")
+@RestController
+@RequestMapping("/api/v1")
 public class WorkbenchController {
- private final AgentStore store;private final AuthService auth;private final RunCoordinator runs;private final MockBusinessService business;
- public WorkbenchController(AgentStore store,AuthService auth,RunCoordinator runs,MockBusinessService business){this.store=store;this.auth=auth;this.runs=runs;this.business=business;}
- private Actor actor(HttpServletRequest req){return (Actor)req.getAttribute("actor");}
- private Map<String,Object> ok(Object data){return map("code","OK","data",data,"traceId",UUID.randomUUID().toString());}
- private Map<String,Object> page(List<Map<String,Object>> items){return map("items",items,"nextCursor",null);}
- private int limit(int n){return Math.max(1,Math.min(100,n));}
- @PostMapping("/auth/demo-login") public Map<String,Object> login(@RequestBody Map<String,Object> body,HttpServletRequest req,HttpServletResponse res){var r=auth.login(String.valueOf(body.getOrDefault("username","")),String.valueOf(body.getOrDefault("password","")));res.addHeader("Set-Cookie",ResponseCookie.from("GX_SESSION",r.get("token").toString()).httpOnly(true).secure(req.isSecure()).sameSite("Lax").path("/").maxAge(Duration.ofHours(8)).build().toString());return ok(map("actor",r.get("actor")));}
- @PostMapping("/auth/logout") public Map<String,Object> logout(HttpServletRequest req,HttpServletResponse res){auth.logout(req);res.addHeader("Set-Cookie",ResponseCookie.from("GX_SESSION","").httpOnly(true).sameSite("Lax").path("/").maxAge(0).build().toString());return ok(Map.of());}
- @GetMapping("/me") public Map<String,Object> me(HttpServletRequest req){return ok(auth.publicActor(actor(req),auth.session(req).get("csrf_token").toString()));}
- @GetMapping("/conversations") public Map<String,Object> conversations(HttpServletRequest req,@RequestParam(defaultValue="20")int limit,@RequestParam(required=false)String cursor){int offset=cursor==null?0:Integer.parseInt(cursor);var all=store.rows("select * from gxa_conversations where user_id=? order by updated_at desc,id limit ? offset ?",uuid(actor(req).id()),limit(limit)+1,offset);boolean more=all.size()>limit(limit);var list=all.stream().limit(limit(limit)).map(store::conversation).toList();return ok(map("items",list,"nextCursor",more?String.valueOf(offset+limit(limit)):null));}
- @PostMapping("/conversations") public Map<String,Object> create(HttpServletRequest req,@RequestBody(required=false)Map<String,Object> body){String id=UUID.randomUUID().toString(),title=body==null?"新对话":String.valueOf(body.getOrDefault("title","新对话"));if(title.length()>100)throw new IllegalArgumentException();store.jdbc.update("insert into gxa_conversations(id,user_id,title) values(?,?,?)",uuid(id),uuid(actor(req).id()),title);return ok(store.conversation(store.ownedConversation(id,actor(req))));}
- @GetMapping("/conversations/{id}") public Map<String,Object> conversation(@PathVariable String id,HttpServletRequest req){return ok(store.conversation(store.ownedConversation(id,actor(req))));}
- @GetMapping("/conversations/{id}/messages") public Map<String,Object> messages(@PathVariable String id,HttpServletRequest req,@RequestParam(defaultValue="100")int limit,@RequestParam(required=false)String cursor){store.ownedConversation(id,actor(req));int offset=cursor==null?0:Integer.parseInt(cursor);var all=store.rows("select * from gxa_messages where conversation_id=? order by created_at desc,id desc limit ? offset ?",uuid(id),limit(limit)+1,offset);boolean more=all.size()>limit(limit);List<Map<String,Object>> result=new ArrayList<>();for(var r:all.stream().limit(limit(limit)).toList()){Object components;try{components=new com.fasterxml.jackson.databind.ObjectMapper().readValue(r.get("components").toString(),List.class);}catch(Exception e){components=List.of();}result.add(map("id",r.get("id").toString(),"role",r.get("role"),"content",r.get("content"),"status",r.get("status"),"runId",str(r.get("run_id")),"createdAt",r.get("created_at").toString(),"components",components));}Collections.reverse(result);return ok(map("items",result,"nextCursor",more?String.valueOf(offset+limit(limit)):null));}
- @PostMapping("/conversations/{id}/messages") public ResponseEntity<?> message(@PathVariable String id,HttpServletRequest req,@RequestBody Map<String,Object> body){return ResponseEntity.accepted().body(ok(runs.accept(actor(req),id,str(body.get("taskId")),body,false,auth.sessionHash(req))));}
- @GetMapping("/tasks/{id}") public Map<String,Object> task(@PathVariable String id,HttpServletRequest req){return ok(store.task(store.ownedTask(id,actor(req))));}
- @PostMapping("/tasks/{id}/actions") public ResponseEntity<?> action(@PathVariable String id,HttpServletRequest req,@RequestBody Map<String,Object> body){var task=store.ownedTask(id,actor(req));return ResponseEntity.accepted().body(ok(runs.accept(actor(req),task.get("conversation_id").toString(),id,body,true,auth.sessionHash(req))));}
- @GetMapping("/tasks/{id}/trace") public Map<String,Object> trace(@PathVariable String id,HttpServletRequest req,@RequestParam(defaultValue="100")int limit,@RequestParam(required=false)String cursor){var task=store.ownedTask(id,actor(req));long after=cursor==null?0:Long.parseLong(cursor);var rows=store.rows("select * from gxa_events where task_id=? and event_seq>? order by event_seq limit ?",uuid(id),after,limit(limit)+1);boolean more=rows.size()>limit(limit);var list=rows.stream().limit(limit(limit)).map(r->map("eventId",r.get("event_seq").toString(),"taskId",id,"runId",str(r.get("run_id")),"traceId",str(r.get("run_id")),"type",r.get("type"),"occurredAt",r.get("occurred_at").toString(),"payload",store.decode(r.get("payload")))).toList();return ok(map("items",list,"nextCursor",more?list.getLast().get("eventId"):null));}
- @GetMapping("/drafts") public Map<String,Object> drafts(HttpServletRequest req,@RequestParam(defaultValue="20")int limit,@RequestParam(required=false)String cursor){var all=business.listDrafts(actor(req));int offset=cursor==null?0:Integer.parseInt(cursor);if(offset<0)throw new IllegalArgumentException();var list=all.stream().skip(offset).limit(limit(limit)).map(x->draftDto(x,actor(req))).toList();return ok(map("items",list,"nextCursor",offset+list.size()<all.size()?String.valueOf(offset+list.size()):null));}
- @GetMapping("/drafts/{id}") public Map<String,Object> draft(@PathVariable String id,HttpServletRequest req){ToolResult r=business.invoke("draft_get",Map.of("draftId",id),actor(req),null);if(!r.success())throw new AgentStore.ResourceMissing();return ok(draftDto(r.data(),actor(req)));}
- private Map<String,Object> draftDto(Map<String,Object> input,Actor actor){var r=new LinkedHashMap<>(input);r.putIfAbsent("id",r.getOrDefault("draftId",r.get("draft_id")));r.putIfAbsent("formType",r.getOrDefault("form_type","PRIVATE_CREDENTIAL"));r.putIfAbsent("metadataVersion","1.0.0");r.putIfAbsent("status","DRAFT");r.putIfAbsent("values",Map.of());r.putIfAbsent("fieldSources",Map.of());var tasks=store.rows("select id,conversation_id from gxa_tasks where user_id=? and state->>'draftId'=? order by updated_at desc limit 1",uuid(actor.id()),String.valueOf(r.get("id")));if(!tasks.isEmpty()){r.put("taskId",tasks.getFirst().get("id").toString());r.put("conversationId",tasks.getFirst().get("conversation_id").toString());}return r;}
- @GetMapping(value="/conversations/{id}/events",produces=MediaType.TEXT_EVENT_STREAM_VALUE) public SseEmitter events(@PathVariable String id,HttpServletRequest req,@RequestParam(required=false)String afterEventId,@RequestHeader(value="Last-Event-ID",required=false)String lastEventId){store.ownedConversation(id,actor(req));if(afterEventId!=null&&lastEventId!=null&&!afterEventId.equals(lastEventId))throw new ApiException(400,"CURSOR_MISMATCH","事件游标不一致");long after=Long.parseLong(afterEventId!=null?afterEventId:lastEventId!=null?lastEventId:"0");String sessionHash=auth.sessionHash(req);SseEmitter emitter=new SseEmitter(600_000L);var open=new java.util.concurrent.atomic.AtomicBoolean(true);emitter.onCompletion(()->open.set(false));emitter.onTimeout(()->open.set(false));emitter.onError(e->open.set(false));Thread.startVirtualThread(()->{long cursor=after,lastBeat=System.currentTimeMillis();try{while(open.get()){if(store.rows("select token_hash from gxa_sessions where token_hash=? and expires_at>now()",sessionHash).isEmpty()){emitter.complete();return;}for(var event:store.events(id,cursor)){emitter.send(SseEmitter.event().id(event.get("eventId").toString()).name(event.get("type").toString()).data(event));cursor=Long.parseLong(event.get("eventId").toString());}if(System.currentTimeMillis()-lastBeat>15000){emitter.send(SseEmitter.event().comment("heartbeat"));lastBeat=System.currentTimeMillis();}Thread.sleep(250);}}catch(Exception e){emitter.complete();}});return emitter;}
+    private final AgentStore store;
+    private final AuthService auth;
+    private final RunCoordinator runs;
+    private final MockBusinessService business;
+
+    public WorkbenchController(
+            AgentStore store, AuthService auth, RunCoordinator runs, MockBusinessService business) {
+        this.store = store;
+        this.auth = auth;
+        this.runs = runs;
+        this.business = business;
+    }
+
+    private Actor actor(HttpServletRequest req) {
+        return (Actor) req.getAttribute("actor");
+    }
+
+    private Map<String, Object> ok(Object data) {
+        return map("code", "OK", "data", data, "traceId", UUID.randomUUID().toString());
+    }
+
+    private Map<String, Object> page(List<Map<String, Object>> items) {
+        return map("items", items, "nextCursor", null);
+    }
+
+    private int limit(int n) {
+        return Math.max(1, Math.min(100, n));
+    }
+
+    @PostMapping("/auth/demo-login")
+    public Map<String, Object> login(
+            @RequestBody Map<String, Object> body,
+            HttpServletRequest req,
+            HttpServletResponse res) {
+        var r =
+                auth.login(
+                        String.valueOf(body.getOrDefault("username", "")),
+                        String.valueOf(body.getOrDefault("password", "")));
+        res.addHeader(
+                "Set-Cookie",
+                ResponseCookie.from("GX_SESSION", r.get("token").toString())
+                        .httpOnly(true)
+                        .secure(req.isSecure())
+                        .sameSite("Lax")
+                        .path("/")
+                        .maxAge(Duration.ofHours(8))
+                        .build()
+                        .toString());
+        return ok(map("actor", r.get("actor")));
+    }
+
+    @PostMapping("/auth/logout")
+    public Map<String, Object> logout(HttpServletRequest req, HttpServletResponse res) {
+        auth.logout(req);
+        res.addHeader(
+                "Set-Cookie",
+                ResponseCookie.from("GX_SESSION", "")
+                        .httpOnly(true)
+                        .sameSite("Lax")
+                        .path("/")
+                        .maxAge(0)
+                        .build()
+                        .toString());
+        return ok(Map.of());
+    }
+
+    @GetMapping("/me")
+    public Map<String, Object> me(HttpServletRequest req) {
+        return ok(auth.publicActor(actor(req), auth.session(req).get("csrf_token").toString()));
+    }
+
+    @GetMapping("/conversations")
+    public Map<String, Object> conversations(
+            HttpServletRequest req,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String cursor) {
+        int offset = cursor == null ? 0 : Integer.parseInt(cursor);
+        var all =
+                store.rows(
+                        "select * from gxa_conversations where user_id=? order by updated_at desc,id limit ? offset ?",
+                        uuid(actor(req).id()),
+                        limit(limit) + 1,
+                        offset);
+        boolean more = all.size() > limit(limit);
+        var list = all.stream().limit(limit(limit)).map(store::conversation).toList();
+        return ok(
+                map(
+                        "items",
+                        list,
+                        "nextCursor",
+                        more ? String.valueOf(offset + limit(limit)) : null));
+    }
+
+    @PostMapping("/conversations")
+    public Map<String, Object> create(
+            HttpServletRequest req, @RequestBody(required = false) Map<String, Object> body) {
+        String id = UUID.randomUUID().toString(),
+                title = body == null ? "新对话" : String.valueOf(body.getOrDefault("title", "新对话"));
+        if (title.length() > 100) throw new IllegalArgumentException();
+        store.jdbc.update(
+                "insert into gxa_conversations(id,user_id,title) values(?,?,?)",
+                uuid(id),
+                uuid(actor(req).id()),
+                title);
+        return ok(store.conversation(store.ownedConversation(id, actor(req))));
+    }
+
+    @GetMapping("/conversations/{id}")
+    public Map<String, Object> conversation(@PathVariable String id, HttpServletRequest req) {
+        return ok(store.conversation(store.ownedConversation(id, actor(req))));
+    }
+
+    @GetMapping("/conversations/{id}/messages")
+    public Map<String, Object> messages(
+            @PathVariable String id,
+            HttpServletRequest req,
+            @RequestParam(defaultValue = "100") int limit,
+            @RequestParam(required = false) String cursor) {
+        store.ownedConversation(id, actor(req));
+        int offset = cursor == null ? 0 : Integer.parseInt(cursor);
+        var all =
+                store.rows(
+                        "select * from gxa_messages where conversation_id=? order by created_at desc,id desc limit ? offset ?",
+                        uuid(id),
+                        limit(limit) + 1,
+                        offset);
+        boolean more = all.size() > limit(limit);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (var r : all.stream().limit(limit(limit)).toList()) {
+            Object components;
+            try {
+                components =
+                        new com.fasterxml.jackson.databind.ObjectMapper()
+                                .readValue(r.get("components").toString(), List.class);
+            } catch (Exception e) {
+                components = List.of();
+            }
+            result.add(
+                    map(
+                            "id",
+                            r.get("id").toString(),
+                            "role",
+                            r.get("role"),
+                            "content",
+                            r.get("content"),
+                            "status",
+                            r.get("status"),
+                            "runId",
+                            str(r.get("run_id")),
+                            "createdAt",
+                            r.get("created_at").toString(),
+                            "components",
+                            components));
+        }
+        Collections.reverse(result);
+        return ok(
+                map(
+                        "items",
+                        result,
+                        "nextCursor",
+                        more ? String.valueOf(offset + limit(limit)) : null));
+    }
+
+    @PostMapping("/conversations/{id}/messages")
+    public ResponseEntity<?> message(
+            @PathVariable String id,
+            HttpServletRequest req,
+            @RequestBody Map<String, Object> body) {
+        return ResponseEntity.accepted()
+                .body(
+                        ok(
+                                runs.accept(
+                                        actor(req),
+                                        id,
+                                        str(body.get("taskId")),
+                                        body,
+                                        false,
+                                        auth.sessionHash(req))));
+    }
+
+    @GetMapping("/tasks/{id}")
+    public Map<String, Object> task(@PathVariable String id, HttpServletRequest req) {
+        return ok(store.task(store.ownedTask(id, actor(req))));
+    }
+
+    @PostMapping("/tasks/{id}/actions")
+    public ResponseEntity<?> action(
+            @PathVariable String id,
+            HttpServletRequest req,
+            @RequestBody Map<String, Object> body) {
+        var task = store.ownedTask(id, actor(req));
+        return ResponseEntity.accepted()
+                .body(
+                        ok(
+                                runs.accept(
+                                        actor(req),
+                                        task.get("conversation_id").toString(),
+                                        id,
+                                        body,
+                                        true,
+                                        auth.sessionHash(req))));
+    }
+
+    @GetMapping("/tasks/{id}/trace")
+    public Map<String, Object> trace(
+            @PathVariable String id,
+            HttpServletRequest req,
+            @RequestParam(defaultValue = "100") int limit,
+            @RequestParam(required = false) String cursor) {
+        var task = store.ownedTask(id, actor(req));
+        long after = cursor == null ? 0 : Long.parseLong(cursor);
+        var rows =
+                store.rows(
+                        "select * from gxa_events where task_id=? and event_seq>? order by event_seq limit ?",
+                        uuid(id),
+                        after,
+                        limit(limit) + 1);
+        boolean more = rows.size() > limit(limit);
+        var list =
+                rows.stream()
+                        .limit(limit(limit))
+                        .map(
+                                r ->
+                                        map(
+                                                "eventId",
+                                                r.get("event_seq").toString(),
+                                                "taskId",
+                                                id,
+                                                "runId",
+                                                str(r.get("run_id")),
+                                                "traceId",
+                                                str(r.get("run_id")),
+                                                "type",
+                                                r.get("type"),
+                                                "occurredAt",
+                                                r.get("occurred_at").toString(),
+                                                "payload",
+                                                store.decode(r.get("payload"))))
+                        .toList();
+        return ok(map("items", list, "nextCursor", more ? list.getLast().get("eventId") : null));
+    }
+
+    @GetMapping("/drafts")
+    public Map<String, Object> drafts(
+            HttpServletRequest req,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String cursor) {
+        var all = business.listDrafts(actor(req));
+        int offset = cursor == null ? 0 : Integer.parseInt(cursor);
+        if (offset < 0) throw new IllegalArgumentException();
+        var list =
+                all.stream()
+                        .skip(offset)
+                        .limit(limit(limit))
+                        .map(x -> draftDto(x, actor(req)))
+                        .toList();
+        return ok(
+                map(
+                        "items",
+                        list,
+                        "nextCursor",
+                        offset + list.size() < all.size()
+                                ? String.valueOf(offset + list.size())
+                                : null));
+    }
+
+    @GetMapping("/drafts/{id}")
+    public Map<String, Object> draft(@PathVariable String id, HttpServletRequest req) {
+        ToolResult r = business.invoke("draft_get", Map.of("draftId", id), actor(req), null);
+        if (!r.success()) throw new AgentStore.ResourceMissing();
+        return ok(draftDto(r.data(), actor(req)));
+    }
+
+    private Map<String, Object> draftDto(Map<String, Object> input, Actor actor) {
+        var r = new LinkedHashMap<>(input);
+        r.putIfAbsent("id", r.getOrDefault("draftId", r.get("draft_id")));
+        r.putIfAbsent("formType", r.getOrDefault("form_type", "PRIVATE_CREDENTIAL"));
+        r.putIfAbsent("metadataVersion", "1.0.0");
+        r.putIfAbsent("status", "DRAFT");
+        r.putIfAbsent("values", Map.of());
+        r.putIfAbsent("fieldSources", Map.of());
+        var tasks =
+                store.rows(
+                        "select id,conversation_id from gxa_tasks where user_id=? and state->>'draftId'=? order by updated_at desc limit 1",
+                        uuid(actor.id()),
+                        String.valueOf(r.get("id")));
+        if (!tasks.isEmpty()) {
+            r.put("taskId", tasks.getFirst().get("id").toString());
+            r.put("conversationId", tasks.getFirst().get("conversation_id").toString());
+        }
+        return r;
+    }
+
+    @GetMapping(value = "/conversations/{id}/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter events(
+            @PathVariable String id,
+            HttpServletRequest req,
+            @RequestParam(required = false) String afterEventId,
+            @RequestHeader(value = "Last-Event-ID", required = false) String lastEventId) {
+        store.ownedConversation(id, actor(req));
+        if (afterEventId != null && lastEventId != null && !afterEventId.equals(lastEventId))
+            throw new ApiException(400, "CURSOR_MISMATCH", "事件游标不一致");
+        long after =
+                Long.parseLong(
+                        afterEventId != null
+                                ? afterEventId
+                                : lastEventId != null ? lastEventId : "0");
+        String sessionHash = auth.sessionHash(req);
+        SseEmitter emitter = new SseEmitter(600_000L);
+        var open = new java.util.concurrent.atomic.AtomicBoolean(true);
+        emitter.onCompletion(() -> open.set(false));
+        emitter.onTimeout(() -> open.set(false));
+        emitter.onError(e -> open.set(false));
+        Thread.startVirtualThread(
+                () -> {
+                    long cursor = after, lastBeat = System.currentTimeMillis();
+                    try {
+                        while (open.get()) {
+                            if (store.rows(
+                                            "select token_hash from gxa_sessions where token_hash=? and expires_at>now()",
+                                            sessionHash)
+                                    .isEmpty()) {
+                                emitter.complete();
+                                return;
+                            }
+                            for (var event : store.events(id, cursor)) {
+                                emitter.send(
+                                        SseEmitter.event()
+                                                .id(event.get("eventId").toString())
+                                                .name(event.get("type").toString())
+                                                .data(event));
+                                cursor = Long.parseLong(event.get("eventId").toString());
+                            }
+                            if (System.currentTimeMillis() - lastBeat > 15000) {
+                                emitter.send(SseEmitter.event().comment("heartbeat"));
+                                lastBeat = System.currentTimeMillis();
+                            }
+                            Thread.sleep(250);
+                        }
+                    } catch (Exception e) {
+                        emitter.complete();
+                    }
+                });
+        return emitter;
+    }
 }

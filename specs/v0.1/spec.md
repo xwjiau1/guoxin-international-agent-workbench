@@ -1,6 +1,6 @@
 # V0.1 业务与行为规格
 
-版本：0.1；基线日期：2026-11-12。状态：已实现主体、分层验证；证照模型协议修复已通过模型回归并重新package，真实浏览器需部署新版后复测。发布状态以[验证记录](../../docs/V0.1-验证记录.md)为准。
+版本：0.1；基线日期：2026-11-12。状态：本机模拟范围已发布；模型协议修复后的真实Qwen回归、重新package、部署及证照/待办真实浏览器复测均已完成。发布状态与未验证专项以[验证记录](../../docs/V0.1-验证记录.md)为准。
 
 ## 1. 目标、范围与排除项
 
@@ -17,11 +17,11 @@
 | 编号 | 必须满足的行为 | 实现入口 | 当前证据 |
 | --- | --- | --- | --- |
 | FR-001 | Actor来自服务端session；本人证照/草稿按owner，本人待办按assignee；其他用户资源不泄露 | AuthFilter/AuthService、AgentStore、MockBusinessService | Boot3、业务PG11覆盖部分 |
-| FR-002 | 真实Qwen解释阶段生成结构化准备/只读工具调用，结果反馈模型后迭代；无结构化结果不得当作业务成功 | QwenInterpreter、WorkflowAgentRuntime | todo与护照2项真实Qwen回归通过；证照浏览器待新版部署复测 |
+| FR-002 | 真实Qwen解释阶段生成结构化准备/只读工具调用，结果反馈模型后迭代；无结构化结果不得当作业务成功 | QwenInterpreter、WorkflowAgentRuntime | todo与护照2项真实Qwen回归通过；证照真实浏览器V-012通过 |
 | FR-003 | 按能力读取办理说明与工具，解释与写入分离；模型不能制造授权或覆盖身份 | capabilities、loadSkill、QwenInterpreter工具白名单 | 代码存在；注册治理限制见plan |
-| FR-004 | 查询本人资料及表单元数据，保留字段来源，逐轮补齐/修改缺项；不猜日期与用途 | loadContext/credential/form_validate、FIELD_COLLECTION | Agent离线、Boot待补齐；完整浏览器待复测 |
+| FR-004 | 查询本人资料及表单元数据，保留字段来源，逐轮补齐/修改缺项；不猜日期与用途 | loadContext/credential/form_validate、FIELD_COLLECTION | Agent离线覆盖；证照真实浏览器V-012通过；Boot覆盖范围以V-005为限 |
 | FR-005 | 可保存不完整草稿并恢复；已填内容仍需合法，更新/提交检查草稿版本 | saveDraft、draft_save/draft_get、草稿入口 | Agent离线、业务PG、Boot草稿通过 |
-| FR-006 | 完整资料生成预览，经有效确认才正式提交；返回实际单据号/流程号/状态 | newConfirmation/confirm、submit_application | Agent与业务PG通过相关用例；浏览器待复测 |
+| FR-006 | 完整资料生成预览，经有效确认才正式提交；返回实际单据号/流程号/状态 | newConfirmation/confirm、submit_application | Agent与业务PG相关用例通过；证照真实浏览器V-012通过 |
 | FR-007 | 待办按类型、明确日期字段、起止范围和关键词筛选；统计来自同一业务筛选对象 | todo_search/todo_statistics、TODO_SELECTION | 业务PG有日期/范围用例；真实浏览器结果见验证记录 |
 | FR-008 | 按用户反馈勾选、排除、同意或驳回；意见/动作/范围在组件明确展示后确认 | UPDATE_REVIEW、APPROVAL_PREVIEW、review_todo | 业务PG与API桩覆盖；浏览器独立记录 |
 | FR-009 | 确认绑定服务端快照，修改内容使旧确认失效；重复确认或重复消息不重复执行 | pendingConfirmation、RunCoordinator.accept、幂等回执 | Agent9、Boot去重、业务PG覆盖 |

@@ -11,10 +11,20 @@
 - [V0.1 spec](v0.1/spec.md)：编号需求、范围、验收场景和实现映射。
 - [V0.1 plan](v0.1/plan.md)：真实架构、技术决策、漂移和限制。
 - [V0.1 tasks](v0.1/tasks.md)：实现任务与验证任务分开。
+- [GOV-001 开发规则接管](changes/GOV-001-development-governance/spec.md)：CLAUDE/rules、项目事实、SDD 流程与模板的建设记录。
+- [QUAL-001 后端格式化](changes/QUAL-001-backend-formatting/spec.md)：Java/POM/SQL纯排版、结构证据及跳过测试构建；后端回归未运行。
+- [BUILD-001 Maven/JDK构建环境](changes/BUILD-001-maven-jdk-bootstrap/spec.md)：项目内Maven 3.9.9、JDK 21依赖解析与跳过测试编译。
 - [迭代路线](roadmap.md)：接口治理、RAG、OKR及真实系统接入。
 - [HTTP契约](../docs/contracts/workbench.openapi.json)：浏览器和后端的接口契约；变更需同步检查实际Controller与客户端。
 
 这些文件是本项目的轻量SDD流程，不依赖外部SDD框架。原有详细设计保留为设计背景，实际边界以规格中已记录的实现差异为准。
+
+## 开发规则与变更分级
+
+- Claude 从根目录 [CLAUDE.md](../CLAUDE.md) 进入；编码、测试、安全、Agent、Git 底线位于 `.claude/rules/`，项目硬约束仍以 [AGENTS.md](../AGENTS.md) 为准。
+- 运行前先查 [项目事实与命令索引](../docs/project-context.md)；M/L、上游变化和持续 Bug 阅读 [Spec 工作流](../docs/development/spec-workflow.md)，创建工件时按需使用 [模板索引](../docs/templates/README.md)。
+- S 不新建整套文档，但既有行为/Bug 仍登记需求编号、回归验收和证据；M 在 `specs/changes/<change-id>/spec.md` 建轻量 Spec；L 在同目录拆 proposal/design/contracts/tasks/verification，重要取舍记 ADR。
+- 变更验收后同步对应版本 spec/plan/tasks；进行中的 change 和历史版本基线分开，不能通过移动路线图或修改旧证据表示新能力已交付。
 
 ## 变更流程与状态门禁
 
