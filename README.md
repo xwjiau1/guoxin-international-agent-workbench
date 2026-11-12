@@ -15,6 +15,7 @@ docker compose up -d --build
 - [业务脚本与验收标准](docs/04-业务样例与验收.md)
 - [工作台 API 契约](docs/contracts/workbench.openapi.json)
 - [其他Agent接管入口](HANDOFF.md)与[协作约定](AGENTS.md)
+- [Claude开发规则](CLAUDE.md)、[项目事实与命令索引](docs/project-context.md)
 - [SDD规范与需求追踪](specs/README.md)
 - [维护、迭代、部署及回滚手册](docs/运维与部署手册.md)
 
